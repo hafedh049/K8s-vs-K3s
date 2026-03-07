@@ -1,0 +1,22 @@
+# /etc/rancher/k3s/config.yaml
+# K3s Agent Configuration
+# Copy to: /etc/rancher/k3s/config.yaml on EACH agent node
+# Then run: curl -sfL https://get.k3s.io | sh -s - agent
+
+# ------------------------------------------------------------
+# Server connection
+# ------------------------------------------------------------
+server: "https://192.168.3.184:6443"
+token: "<PASTE_TOKEN_FROM: sudo cat /var/lib/rancher/k3s/server/node-token>"
+
+# ------------------------------------------------------------
+# Node Labels
+# ------------------------------------------------------------
+node-label:
+  - "environment=production"
+  - "role=worker"
+
+# ------------------------------------------------------------
+# Network interface (uncomment if multiple interfaces)
+# ------------------------------------------------------------
+# flannel-iface: "ens33"
