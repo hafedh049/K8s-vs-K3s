@@ -1,10 +1,14 @@
-# K8s - Single Control Plane Installation
+# K8s - Single Control Plane + 2 Worker Nodes
 
-This guide installs a single-node Kubernetes cluster where the control plane and workloads run on the same machine. This is used for learning and local testing.
+This guide installs a Kubernetes cluster with one control plane and two worker nodes. The control plane manages the cluster. The workers run your application workloads.
 
-Node used: `cp1` at `192.168.3.129`
+| Role | Hostname | IP Address |
+|---|---|---|
+| Control Plane | cp1 | 192.168.3.129 |
+| Worker 1 | wk1 | 192.168.3.180 |
+| Worker 2 | wk2 | 192.168.3.182 |
 
-Before starting, complete `00 - Environment Setup` on this node.
+Before starting, complete `00 - Environment Setup` on all three nodes.
 
 ---
 
@@ -20,6 +24,8 @@ Before starting, complete `00 - Environment Setup` on this node.
 ---
 
 ## Step 1 - Install kubeadm, kubelet, kubectl
+
+Run on **cp1, wk1, and wk2**.
 
 Add the Kubernetes apt repository:
 
@@ -44,18 +50,20 @@ sudo apt install -y kubelet kubeadm kubectl
 sudo apt-mark hold kubelet kubeadm kubectl
 ```
 
-Confirm installation:
+Confirm on each node:
 
 ```bash
 kubectl version --client
 kubeadm version
 ```
 
-![kubeadm and kubectl installed](images/kubeadm-installed.png)
+![[images/Pasted image 20260311125859.png]]
 
 ---
 
 ## Step 2 - Initialize the Cluster
+
+Run on **cp1 only**.
 
 ```bash
 sudo kubeadm init \
@@ -64,15 +72,26 @@ sudo kubeadm init \
   --kubernetes-version=v1.29.0
 ```
 
-This process takes 1-2 minutes. At the end you will see a `kubeadm join` command. Save it — you need it to add worker nodes later.
+This takes 1-2 minutes. When it finishes, you will see output that includes a `kubeadm join` command at the bottom. It looks like this:
 
-![kubeadm init success](images/kubeadm-init-success.png)
+```
+kubeadm join 192.168.3.129:6443 --token <token> \
+    --discovery-token-ca-cert-hash sha256:<hash>
+```
+
+Copy and save the entire join command. You will need it in Step 5. The token expires after 24 hours. If it expires before you use it, regenerate it with:
+
+```bash
+kubeadm token create --print-join-command
+```
+
+![[images/Pasted image 20260311131423.png]]
 
 ---
 
 ## Step 3 - Configure kubectl
 
-Copy the admin config so kubectl can authenticate:
+Run on **cp1 only**.
 
 ```bash
 mkdir -p $HOME/.kube
@@ -95,20 +114,22 @@ Test the connection:
 k get nodes
 ```
 
-The node will show `NotReady` until the CNI is installed in the next step.
+cp1 will show `NotReady` until the CNI is installed in the next step.
 
 ---
 
 ## Step 4 - Install Calico CNI
 
-Without a CNI plugin, pods cannot communicate with each other and the node stays in NotReady state.
+Run on **cp1 only**.
+
+Without a CNI plugin, pods cannot communicate with each other and nodes stay in `NotReady` state.
 
 ```bash
 kubectl apply -f \
   https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/calico.yaml
 ```
 
-Wait for Calico pods to start:
+Wait for Calico pods to be running:
 
 ```bash
 kubectl get pods -n calico-system -w
@@ -120,43 +141,98 @@ Press `Ctrl+C` when all pods show `Running`. Then check the node:
 k get nodes
 ```
 
-The node should now show `Ready`.
+cp1 should now show `Ready`.
 
-![node ready after calico](images/node-ready-calico.png)
+![[images/Pasted image 20260311131546.png]]
 
 ---
 
-## Step 5 - Allow Scheduling on the Control Plane
+## Step 5 - Join the Worker Nodes
 
-By default, Kubernetes does not schedule workload pods on control plane nodes. For a single-node setup, remove this restriction:
+Run on **wk1 and wk2**. Use the join command you saved from Step 2.
 
 ```bash
-kubectl taint nodes --all node-role.kubernetes.io/control-plane-
+sudo kubeadm join 192.168.3.129:6443 \
+  --token <your-token> \
+  --discovery-token-ca-cert-hash sha256:<your-hash>
 ```
+
+Run this on wk1 first, wait for it to complete, then run it on wk2.
 
 ---
 
-## Step 6 - Verify the Cluster
+## Step 6 - Verify the Full Cluster
+
+Run on **cp1**.
 
 ```bash
 k get nodes -o wide
+```
+
+Expected output:
+
+```
+NAME   STATUS   ROLES           AGE   VERSION     INTERNAL-IP
+cp1    Ready    control-plane   ...   v1.29.15    192.168.3.129
+wk1    Ready    <none>          ...   v1.29.15    192.168.3.180
+wk2    Ready    <none>          ...   v1.29.15    192.168.3.182
+```
+
+All three nodes should show `Ready`. If a worker shows `NotReady`, wait 30 seconds and run the command again — kubelet on the new node needs a moment to register with the control plane.
+
+Check all system pods are healthy:
+
+```bash
 k get pods -A
 ```
 
-All system pods should be `Running`. The node should be `Ready`.
+![[images/Pasted image 20260311132002.png]]
 
-![full cluster healthy](images/cluster-healthy.png)
+---
+
+## Step 7 - Verify Pod Scheduling on Workers
+
+Deploy a quick test to confirm pods land on the worker nodes and not on the control plane:
+
+```bash
+kubectl create deployment test-scheduling \
+  --image=nginx \
+  --replicas=4
+
+kubectl get pods -o wide
+```
+
+You should see pods distributed across wk1 and wk2. The control plane (cp1) does not receive workload pods by default. This is intentional — the control plane is reserved for cluster management components.
+
+![[images/Pasted image 20260311133130.png]]
+
+Clean up:
+
+```bash
+kubectl delete deployment test-scheduling
+```
 
 ---
 
 ## What is Running on Your Cluster
 
-| Component | Namespace | Role |
+| Component | Node | Namespace | Role |
+|---|---|---|---|
+| kube-apiserver | cp1 | kube-system | Accepts all kubectl commands |
+| etcd | cp1 | kube-system | Stores all cluster state |
+| kube-scheduler | cp1 | kube-system | Decides which node runs each pod |
+| kube-controller-manager | cp1 | kube-system | Ensures desired state is maintained |
+| kube-proxy | all nodes | kube-system | Handles networking rules per node |
+| coredns | cp1 | kube-system | DNS resolution inside the cluster |
+| calico-node | all nodes | calico-system | Pod networking per node |
+
+---
+
+## Common Issues
+
+| Problem | Likely Cause | Fix |
 |---|---|---|
-| kube-apiserver | kube-system | Accepts all kubectl commands |
-| etcd | kube-system | Stores all cluster state |
-| kube-scheduler | kube-system | Decides which node runs each pod |
-| kube-controller-manager | kube-system | Ensures desired state is maintained |
-| kube-proxy | kube-system | Handles networking rules on the node |
-| coredns | kube-system | DNS resolution inside the cluster |
-| calico-node | calico-system | Pod networking |
+| Worker shows NotReady | kubelet not started | `sudo systemctl restart kubelet` on the worker |
+| Join command rejected | Token expired (24h TTL) | Run `kubeadm token create --print-join-command` on cp1 |
+| Pods stuck on cp1 | Control plane taint removed | Do not run the untaint command — workers should receive pods |
+| Worker cannot reach cp1 | Firewall or /etc/hosts | Verify `ping cp1` works from the worker and port 6443 is open |

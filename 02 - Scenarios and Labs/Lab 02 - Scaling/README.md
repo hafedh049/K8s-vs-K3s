@@ -38,7 +38,7 @@ kubectl get pods -o wide -w
 
 Watch 4 new pods start. Press `Ctrl+C` when all 6 are `Running`.
 
-![scaled to 6 on k8s](images/k8s-scaled-up.png)
+![[images/Pasted image 20260311135931.png]]
 
 ### 1.3 - Scale Down
 
@@ -82,9 +82,9 @@ kubectl scale deployment scale-demo --replicas=6
 kubectl get pods -o wide
 ```
 
-Observe how the scheduler distributes pods across `k3s-agent-1` and `k3s-agent-2`. With 6 pods and 2 nodes, each agent should receive approximately 3 pods.
+With one agent node, all pods land on `k3s-agent-1`. This is different from the K8s setup where pods spread across wk1 and wk2.
 
-![pods distributed across agents](images/k3s-scaled-distributed.png)
+![[Pasted image 20260311140037.png]]
 
 ### 2.3 - Simulate What Happens When a Node Has More Pods
 
@@ -120,63 +120,15 @@ kubectl delete deployment scale-demo
 
 ---
 
-## Part 3 - Rolling Update (Both Clusters)
-
-A rolling update replaces pods one at a time instead of all at once. This keeps the application available during the update.
-
-Run this on either cluster.
-
-```bash
-kubectl create deployment rolling-demo \
-  --image=nginx:1.25 \
-  --replicas=4
-
-kubectl get pods -o wide
-```
-
-Update the image:
-
-```bash
-kubectl set image deployment/rolling-demo \
-  nginx=nginx:1.26
-
-kubectl rollout status deployment/rolling-demo
-```
-
-Watch the output — it shows pods terminating and new ones starting in sequence, not all at once.
-
-![rolling update](images/rolling-update.png)
-
-View the rollout history:
-
-```bash
-kubectl rollout history deployment/rolling-demo
-```
-
-Roll back to the previous version:
-
-```bash
-kubectl rollout undo deployment/rolling-demo
-kubectl rollout status deployment/rolling-demo
-```
-
-Cleanup:
-
-```bash
-kubectl delete deployment rolling-demo
-```
-
----
-
 ## What the Learner Must Understand
 
 Scaling commands are identical on K8s and K3s. The observable difference is in pod placement:
 
-| Observation | K8s (single node) | K3s (2 agents) |
-|---|---|---|
-| Scaling from 2 to 6 | All 6 pods on the same node | Pods spread across 2 agents |
-| Scaling down | Pods terminate regardless of which node | Same behavior |
-| Rolling update | Replaces pods one at a time | Same behavior |
+| Observation         | K8s (cp1 + wk1 + wk2)                   | K3s (server + 1 agent)    |
+| ------------------- | --------------------------------------- | ------------------------- |
+| Scaling from 2 to 6 | Pods spread across wk1 and wk2          | All 6 pods on k3s-agent-1 |
+| Scaling down        | Pods terminate regardless of which node | Same behavior             |
+
 
 The scheduler is what decides where pods go. It considers available resources on each node, existing pod counts, and affinity rules. With one node there is only one option. With multiple nodes the scheduler makes a distribution decision for every new pod.
 

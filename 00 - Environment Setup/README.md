@@ -9,9 +9,10 @@ This section covers the base configuration that must be applied to every node be
 | Role | Hostname | IP Address | OS |
 |---|---|---|---|
 | K8s Control Plane | cp1 | 192.168.3.129 | Linux Mint 22 |
+| K8s Worker 1 | wk1 | 192.168.3.180 | Linux Mint 22 |
+| K8s Worker 2 | wk2 | 192.168.3.182 | Linux Mint 22 |
 | K3s Server | k3s-server | 192.168.3.184 | Linux Mint 22 |
-| K3s Agent 1 | k3s-agent-1 | 192.168.3.185 | Linux Mint 22 |
-| K3s Agent 2 | k3s-agent-2 | 192.168.3.186 | Linux Mint 22 |
+| K3s Agent | k3s-agent-1 | 192.168.3.185 | Linux Mint 22 |
 
 > Adjust IPs to match your own machines. The important thing is that all nodes can reach each other by IP.
 
@@ -28,6 +29,8 @@ sudo apt update && sudo apt upgrade -y
 ---
 
 ## Step 2 - Install Required Packages
+
+Run on every node.
 
 ```bash
 sudo apt install -y \
@@ -48,14 +51,17 @@ Each node needs a unique hostname. Run the command that matches the node you are
 # On the K8s control plane node
 sudo hostnamectl set-hostname cp1
 
+# On K8s worker 1
+sudo hostnamectl set-hostname wk1
+
+# On K8s worker 2
+sudo hostnamectl set-hostname wk2
+
 # On the K3s server node
 sudo hostnamectl set-hostname k3s-server
 
-# On K3s agent 1
+# On K3s agent
 sudo hostnamectl set-hostname k3s-agent-1
-
-# On K3s agent 2
-sudo hostnamectl set-hostname k3s-agent-2
 ```
 
 Start a new shell session so the hostname takes effect:
@@ -78,9 +84,10 @@ Add these lines at the bottom:
 
 ```
 192.168.3.129   cp1
+192.168.3.180   wk1
+192.168.3.182   wk2
 192.168.3.184   k3s-server
 192.168.3.185   k3s-agent-1
-192.168.3.186   k3s-agent-2
 ```
 
 Test resolution:
@@ -114,7 +121,7 @@ free -h
 
 The Swap line should show `0B` across all columns.
 
-![Swap disabled](images/swap-disabled.png)
+![[images/swap-disabled.png]]
 
 ---
 
@@ -152,7 +159,8 @@ sysctl net.ipv4.ip_forward
 # Both must return = 1
 ```
 
-![sysctl values applied](images/sysctl-applied.png)
+
+![[images/sysctl-applied.png]]
 
 ---
 
@@ -183,7 +191,7 @@ Verify containerd is running:
 sudo systemctl status containerd
 ```
 
-![containerd running](images/containerd-running.png)
+![[images/containerd-running.png]]
 
 Fix the crictl endpoint warning that appears by default:
 

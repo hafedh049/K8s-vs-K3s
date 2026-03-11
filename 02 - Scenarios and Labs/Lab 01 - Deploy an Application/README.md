@@ -34,7 +34,7 @@ kubectl get pods -o wide -w
 
 Press `Ctrl+C` when all 3 pods show `Running`. Notice the `NODE` column — on a single-node cluster all pods land on `cp1`. On a multi-node cluster they would spread across worker nodes.
 
-![pods running on k8s](images/k8s-pods-running.png)
+![[images/Pasted image 20260311135056.png]]
 
 ### 1.2 - Expose the Deployment
 
@@ -52,7 +52,7 @@ kubectl get svc nginx-demo
 
 Look at the `PORT(S)` column. You will see something like `80:31500/TCP`. The second number, `31500`, is the NodePort — this is the port you use to reach the application from outside the cluster.
 
-![nodeport assigned](images/k8s-nodeport.png)
+![[images/Pasted image 20260311135238.png]]
 
 ### 1.3 - Access the Application
 
@@ -65,7 +65,7 @@ curl http://192.168.3.129:${NODE_PORT}
 
 You should see the nginx welcome page HTML in your terminal. You can also open `http://192.168.3.129:<port>` in a browser.
 
-![nginx accessible](images/k8s-nginx-accessible.png)
+![[images/Pasted image 20260311135320.png]]
 
 ### 1.4 - Inspect What Was Created
 
@@ -109,9 +109,9 @@ Watch pods start:
 kubectl get pods -o wide -w
 ```
 
-Notice the `NODE` column this time. With two agents, pods spread across `k3s-agent-1` and `k3s-agent-2`. The server node does not run workload pods by default — only agents do.
+Notice the `NODE` column this time. With one agent, all pods land on `k3s-agent-1`. The server node does not run workload pods by default — only agents do.
 
-![pods spread across agents](images/k3s-pods-spread.png)
+![[images/Pasted image 20260311135628.png]]
 
 ### 2.2 - Expose and Access
 
@@ -127,7 +127,7 @@ NODE_PORT=$(kubectl get svc nginx-demo \
 curl http://192.168.3.185:${NODE_PORT}
 ```
 
-![nginx on k3s](images/k3s-nginx-accessible.png)
+![[images/Pasted image 20260311135714.png]]
 
 ### 2.3 - Cleanup
 
@@ -142,10 +142,10 @@ kubectl delete svc nginx-demo
 
 The kubectl commands are completely identical between K8s and K3s. The same `create deployment` and `expose` commands work on both. What changes is the behavior:
 
-| Behavior | K8s (single node) | K3s (server + 2 agents) |
+| Behavior | K8s (cp1 + wk1 + wk2) | K3s (server + 1 agent) |
 |---|---|---|
-| Where pods land | Only on cp1 (one node) | Spread across agent-1 and agent-2 |
-| Which IP to access | Node IP of cp1 | Any agent IP |
-| Server runs workloads | Yes (after removing taint) | No — server is control plane only |
+| Where pods land | Spread across wk1 and wk2 | All pods on k3s-agent-1 |
+| Which IP to access | Any worker IP | Agent IP (192.168.3.185) |
+| Server runs workloads | No — workers only | No — agent only |
 
 The key insight is that Kubernetes and K3s are not different tools — K3s is a distribution of Kubernetes. Every kubectl command you learn works on both.

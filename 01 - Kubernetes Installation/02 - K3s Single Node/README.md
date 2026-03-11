@@ -29,7 +29,7 @@ curl -sfL https://get.k3s.io | sh -
 
 That single command installs K3s, registers it as a systemd service, and starts it.
 
-![k3s install complete](images/k3s-install-complete.png)
+![[images/Pasted image 20260311133351.png]]
 
 ---
 
@@ -39,7 +39,7 @@ That single command installs K3s, registers it as a systemd service, and starts 
 sudo systemctl status k3s
 ```
 
-![k3s service running](images/k3s-service-running.png)
+![[images/Pasted image 20260311133505.png]]
 
 ---
 
@@ -71,7 +71,7 @@ k get pods -A
 
 The node is `Ready` immediately. All pods are already running.
 
-![k3s node ready](images/k3s-node-ready.png)
+![[images/Pasted image 20260311133710.png]]
 
 ---
 

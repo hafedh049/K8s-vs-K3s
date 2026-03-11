@@ -1,12 +1,11 @@
 # K3s - Multi-Node Installation (Server + Agents)
 
-This guide sets up a K3s cluster with one server node (control plane) and two agent nodes (workers). The server runs the K3s API server and stores cluster state. The agents run workloads.
+This guide sets up a K3s cluster with one server node (control plane) and one agent node (worker). The server runs the K3s API server and stores cluster state. The agent runs workloads.
 
 | Role | Hostname | IP |
 |---|---|---|
 | Server | k3s-server | 192.168.3.184 |
-| Agent 1 | k3s-agent-1 | 192.168.3.185 |
-| Agent 2 | k3s-agent-2 | 192.168.3.186 |
+| Agent | k3s-agent-1 | 192.168.3.185 |
 
 Before starting, complete `00 - Environment Setup` on all three nodes.
 
@@ -18,10 +17,8 @@ Before starting, complete `00 - Environment Setup` on all three nodes.
 k3s-server (192.168.3.184)
     API Server + Scheduler + Controller + SQLite
           |
-    ------+------
-    |           |
-k3s-agent-1   k3s-agent-2
-(workloads)   (workloads)
+    k3s-agent-1 (192.168.3.185)
+         (workloads)
 ```
 
 In K3s, all control plane components run as a single binary. There is no separate etcd process — by default K3s uses SQLite as its datastore, embedded inside the binary. This is sufficient for a single server and a handful of agents.
@@ -53,7 +50,7 @@ sudo systemctl status k3s
 k get nodes
 ```
 
-![k3s server running](images/k3s-server-running.png)
+![[images/Pasted image 20260311134051.png]]
 
 ---
 
@@ -67,7 +64,7 @@ sudo cat /var/lib/rancher/k3s/server/node-token
 
 Copy the full token output. You will need it in the next step.
 
-![server token](images/server-token.png)
+![[images/Pasted image 20260311134151.png]]
 
 ---
 
@@ -88,11 +85,11 @@ source ~/.bashrc
 
 ## Part 4 - Install the K3s Agents
 
-Run on `k3s-agent-1` and `k3s-agent-2`. Replace `<TOKEN>` with the token from Part 2.
+Run on **k3s-agent-1**. Replace `<TOKEN>` with the token from Part 2.
 
 ```bash
 export K3S_URL="https://192.168.3.184:6443"
-export K3S_TOKEN="<TOKEN>"
+export K3S_TOKEN="K10c625dc0a70f5b7bcb748b4bd5dbe4e74a31fe886673db72174620d7b54a3930b::server:2e56777160245370e2b381c56f2377f9"
 
 curl -sfL https://get.k3s.io | sh -s - agent \
   --server $K3S_URL \
@@ -105,7 +102,7 @@ Check the agent service:
 sudo systemctl status k3s-agent
 ```
 
-![k3s agent running](images/k3s-agent-running.png)
+![[images/Pasted image 20260311134637.png]]
 
 ---
 
@@ -123,10 +120,9 @@ Expected output:
 NAME          STATUS   ROLES                  AGE   VERSION
 k3s-server    Ready    control-plane,master   ...   v1.34.x+k3s1
 k3s-agent-1   Ready    <none>                 ...   v1.34.x+k3s1
-k3s-agent-2   Ready    <none>                 ...   v1.34.x+k3s1
 ```
 
-![all nodes ready](images/all-nodes-ready.png)
+![[images/Pasted image 20260311134757.png]]
 
 ---
 

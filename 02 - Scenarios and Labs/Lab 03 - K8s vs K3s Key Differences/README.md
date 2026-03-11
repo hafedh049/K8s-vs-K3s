@@ -25,8 +25,6 @@ kubectl top nodes
 
 Note the memory consumed by the control plane components. On a fresh K8s cluster you will typically see 800 MB to 1.5 GB in use just from the control plane.
 
-![k8s memory usage](images/k8s-memory-usage.png)
-
 ### 1.2 - Check Memory Usage on K3s
 
 Run on `k3s-server`:
@@ -36,8 +34,6 @@ free -h
 ```
 
 K3s typically uses 250 to 400 MB for the entire control plane. This is because all components — API server, scheduler, controller manager — run as a single process rather than separate processes.
-
-![k3s memory usage](images/k3s-memory-usage.png)
 
 ### 1.3 - Check Running Processes
 
@@ -81,7 +77,7 @@ kubectl get pods -A | grep traefik
 
 Traefik is already running. K3s installs it automatically. You can create an Ingress resource immediately without any extra setup.
 
-![traefik running on k3s](images/k3s-traefik-running.png)
+![[images/Pasted image 20260311140443.png]]
 
 ### 2.3 - Check Storage Classes
 
@@ -124,9 +120,7 @@ Watch from `k3s-server`:
 kubectl get pods -o wide -w
 ```
 
-Within a few minutes the pods that were on `k3s-agent-1` will move to `Terminating` and new pods will start on `k3s-agent-2`. The deployment maintains its replica count automatically.
-
-![pod rescheduling after agent failure](images/k3s-pod-rescheduling.png)
+Within a few minutes the pods that were on `k3s-agent-1` will move to `Terminating`. Since there is only one agent, the pods will remain in a pending state until the agent comes back online. This is the expected behavior with a single agent — there is no second node to reschedule onto.
 
 Power `k3s-agent-1` back on. Once it boots, check from the server:
 
